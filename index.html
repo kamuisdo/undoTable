@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Document</title>
+	<script type="text/javascript" src="jquery-1.9.1.min.js"></script>
+	<!-- <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.0.0/jquery.min.js"></script> -->
+	<script type="text/javascript" src="undo.js"></script>
+	<script type="text/javascript">
+	//添加点击事件
+	(function(){
+		function bindTable(){
+			$("#table").find("tr").click(function(){
+					$("#table").find("tr").removeClass('selected');
+					$(this).addClass('selected');
+				});
+		};
+		window.bindTable=bindTable;
+	}());
+	//一个table的类，具有insert delete等属性
+	(function(){
+
+		function EditableTable(tableId){
+			this.name=tableId,
+
+
+			this.sortId=function(){
+				var tableLength=$("#"+this.name).children('tbody').find('tr').length;
+				for(var i=0;i<tableLength;i++){
+					$("#"+this.name).children('tbody').find('tr').eq(i).children('td').eq(0).html(i+1);
+				};
+				
+			},
+			this.insert=function(){
+				$("#"+this.name).find('.selected').before('<tr><td></td><td></td></tr>');
+				this.sortId();
+				
+			},
+			this.deleteTr=function(){
+				$("#"+this.name).find('.selected').remove();
+				this.sortId();
+			},
+			this.up=function(){
+				$("#"+this.name).find('.selected').prev().before($("#"+this.name).find('.selected'));
+				this.sortId();
+			},
+			this.down=function(){
+				$("#"+this.name).find('.selected').next().after($("#"+this.name).find('.selected'));
+				this.sortId();
+			}
+		};
+		//选中的单元格添加class
+		EditableTable.prototype.addSelected = function() {
+			
+		};
+		window.EditableTable=EditableTable;
+	}());
+
+
+	//入栈接口
+	(function(){
+		function DataPattern_insert(tableId){
+			var index=$("table").children('tbody').find('tr').index($("table").find('.selected'));
+			return{
+				undo:function(){
+					$(tableId.name).children('tbody').find('tr').eq(index).remove();
+					tableId.sortId();
+					
+				},
+				redo:function(){
+					$(tableId.name).children('tbody').find('tr').eq(index).before('<tr><td></td><td></td></tr>');
+					tableId.sortId();
+					
+				}
+			}
+		};
+		window.DataPattern_insert=DataPattern_insert;
+
+		function DataPattern_delete(tableId){
+			var index=$("table").children('tbody').find('tr').index($("table").find('.selected'));
+			var contant=$("table").find('.selected').children('td').eq(1).html();
+			//alert(contant);
+			return{
+				undo:function(){
+					$(tableId.name).children('tbody').find('tr').eq(index).before('<tr class="selected"><td></td><td>'+contant+'</td></tr>');
+					tableId.sortId();
+					
+				},
+				redo:function(){
+					$(tableId.name).children('tbody').find('tr').eq(index).remove();
+					tableId.sortId();
+					
+				}
+			}
+		};
+		window.DataPattern_delete=DataPattern_delete;
+
+		function DataPattern_up(tableId){
+			var index=$("table").children('tbody').find('tr').index($("table").find('.selected'));
+			//alert(contant);
+			return{
+				undo:function(){
+					$(tableId.name).children('tbody').find('tr').eq(index).after($("table").find('.selected'));
+					tableId.sortId();
+					
+				},
+				redo:function(){
+					$(tableId.name).children('tbody').find('tr').eq(index).prev().before($("table").find('.selected'));
+					tableId.sortId();
+					
+				}
+			}
+		};
+		window.DataPattern_up=DataPattern_up;
+
+		function DataPattern_down(tableId){
+			var index=$("table").children('tbody').find('tr').index($("table").find('.selected'));
+			//alert(contant);
+			return{
+				undo:function(){
+					$(tableId.name).children('tbody').find('tr').eq(index).before($("table").find('.selected'));
+					tableId.sortId();
+					
+				},
+				redo:function(){
+					$(tableId.name).children('tbody').find('tr').eq(index).next().after($("table").find('.selected'));
+					tableId.sortId();
+					
+				}
+			}
+		};
+		window.DataPattern_down=DataPattern_down;
+	}());
+	//按钮状态
+
+
+
+	//ready
+	$(document).ready(function(){
+		bindTable();
+		var undo=$("#undo"),
+			redo=$("#redo"),
+			clear=$("#clear"),
+			insertTr=$("#insertTr"),
+			deleteTr=$("#deleteTr"),
+			up=$("#up"),
+			down=$("#down");
+		//实例化table
+		var table= new EditableTable("table");
+		//实例化stack
+		var UndoAction=new UndoStack();
+		//设置限制
+		UndoAction.setLimit(5);
+		//设置回调函数
+		//UndoAction.setBtnCallback("undo","redo");
+
+		//绑定点击事件
+		insertTr.click(function(){
+			UndoAction.addData(new DataPattern_insert(table));
+			table.insert();
+			
+		});
+		deleteTr.click(function(){
+			UndoAction.addData(new DataPattern_delete(table));
+			table.deleteTr();
+
+		});
+		up.click(function(){
+			UndoAction.addData(new DataPattern_up(table));
+			table.up();
+		});
+		down.click(function(){
+			UndoAction.addData(new DataPattern_down(table));
+			table.down();
+		});
+
+		
+
+		
+
+	    //
+	    undo.click(function(){
+	    	UndoAction.undo();
+	    });
+	    redo.click(function(){
+	    	UndoAction.redo();
+	    });
+
+
+
+
+		//end
+	});
+
+	</script>
+	<style type="text/css">
+	#table tr:hover{
+		background-color:#ccc;
+	}
+	.selected{
+		background-color:#ccc;
+	}
+	</style>
+
+</head>
+<body>
+	<div style="padding:10px;">
+		<button id="undo" >undo</button>
+		<button id="redo" >redo</button>
+		<button id="clear">clear</button>
+	</div>
+	<div style="padding:10px;">
+		<button id="insertTr">insert</button>
+		<button id="deleteTr">delete</button>
+		<button id="up">up</button>
+		<button id="down">down</button>
+	</div>
+	<table border="1" id="table">
+		<thead>
+			<tr>
+				<td>ID</td>
+				<td>text</td>
+			</tr>
+		</thead>
+		<tr>
+			<td>1</td>
+			<td>11111111111</td>
+		</tr>
+		<tr>
+			<td>2</td>
+			<td>2222222222</td>
+		</tr>
+		<tr>
+			<td>3</td>
+			<td>3333333333</td>
+		</tr>
+		<tr>
+			<td>4</td>
+			<td>4444444444</td>
+		</tr>
+		<tr>
+			<td>5</td>
+			<td>555555555</td>
+		</tr>
+		<tr>
+			<td>6</td>
+			<td>6666666666</td>
+		</tr>
+		<tr>
+			<td>7</td>
+			<td>7777777777</td>
+		</tr>
+		<tr>
+			<td>8</td>
+			<td>8888888888</td>
+		</tr>
+		<tr>
+			<td>9</td>
+			<td>9999999999</td>
+		</tr>
+	</table>
+</body>
+</html>
